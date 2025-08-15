@@ -13,6 +13,7 @@ Each of these roles addresses one of the previous stated scenarios for disabling
 ## General Requirements for Every Role
 
 - AAP 2.5 - other version of AAP and standalone Ansible may work, but have not been tested
+- Red Hat Identity Manager 4.12.2+ - other versions should be fine, but the roles were tested on this version
 - Community General ansible galaxy collection - the ipa user module is used to disable the user; this is part of the community general collection, and any execution environment utilized must have access to that module
 - The directory manager and admin passwords for IdM  - the admin password could be used throughout, but you must have the admin user distinguished name for successful ldapsearch commands
 - The basedn of the IdM server where the users are stored - by default, this is the set using the domain components of the network where IdM is installed. If the domain were acme.example.com, the basedn of the users would be “cn=users,cn=accounts,dc=acme,dc=example,dc=com”
