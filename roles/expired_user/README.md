@@ -25,7 +25,7 @@ N/A
 
 Example Playbook
 ----------------
-
+```
 ---
 - name: Disable temporary user accounts that have reach their expiration date but are still enabled
   hosts: 192.168.2.199
@@ -48,6 +48,7 @@ Example Playbook
           66326635666238626262636330306465653565646130653964626336313633623435316666616534
           3339396136306436630a363539636538646431616336636461663339373666363166343636333131
           6164
+```
 
 License
 -------
