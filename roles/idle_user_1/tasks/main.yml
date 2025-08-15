@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for idle_user_1
+- name: Store the current time as a variable
+  ansible.builtin.command:
+    cmd: date -d today '+%Y%m%d%H%M%S'Z
+  register: current_time
+  changed_when: false
+  
+- name: create a variable with the current date
+  ansible.builtin.set_fact:
+    pipe_timestamp: "{{ lookup('pipe', 'date +%Y%m%dS') }}"
+
+- name: Check that the results file exists
+  ansible.builtin.stat:
+    path: "{{ idle_user_tempFile_directory }}/user_list.txt"
+  register: stat_user_list
+  
+- name: Copy the file to a new location
+  ansible.builtin.copy:
+    src: "{{ idle_user_tempFile_directory }}/user_list.txt"
+    dest: "{{ archive_directory }}/user_list_`date -d today '+%Y%m%d%H%M%S'`.txt"
+    remote_src: true
+  when:  stat_user_list.stat.exists
+
+- name: Remove the old file
+  ansible.builtin.file:
+    path: "{{ idle_user_tempFile_directory }}/user_list.txt"
+    state: absent
+  when:  stat_user_list.stat.exists
+  
+- name: search of all IdM (LDAP) servers to build a list of user that have never logged in
+  ansible.builtin.shell: >
+    /usr/bin/ldapsearch -x -h {{ item }} -p 389 -D cn="directory manager" -w {{ dm_idm1_passwd }} \
+    -b {{ basedn }} "(&(!(nsaccountlock=true))(krblastsuccessfulauth<=`date -d '{{ idle_days }} days ago' '+%Y%m%d%H%M%S'Z`))" \
+    uid -LLL | /usr/bin/grep "^uid" | /usr/bin/grep -v admin | /usr/bin/grep -v sudo | \
+    /usr/bin/awk '{print $2}' >> /{{ idle_user_tempFile_directory }}/user_list.txt
+  loop: "{{ groups['idm_servers'] }}"
+
+- name: run bash script to refine list of users that meet cirteria for being disabled in IdM
+  ansible.builtin.shell: >
+    {{ idle_user_tempFile_directory }}/last_login.sh | grep -v "^==="
+  register: idle_users
+
+- name: debug task - print the variable of the user names
+  ansible.builtin.debug:
+    var: idle_users
+    
+- name: Disable the idle users
+  community.general.ipa_user:
+    name: "{{ item }}"
+    state: disabled
+    ipa_pass: '{{ idm_admin_passwd }}'
+    ipa_host: "{{ primary_idm_server }}"
+    validate_certs: false
+  loop: "{{ idle_users.stdout_lines }}"
+  when: idle_users.stdout_lines | length > 0
+

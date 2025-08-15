@@ -1,0 +1,7 @@
+---
+# defaults file for never_login_user
+dm_bind_dn: cn="directory manager"
+idle_days: 60
+idle_user_tempFile_directory: /mnt/idm_plugin
+logfile_name: idm_idle_user_log
+archive_directory: /tmp

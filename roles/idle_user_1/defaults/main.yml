@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for idle_user_1
+dm_bind_dn: cn="directory manager"
+idle_days: 60
+idle_user_tempFile_directory: /mnt/idm_plugin
+logfile_name: idm_idle_user_log
+archive_directory: /tmp

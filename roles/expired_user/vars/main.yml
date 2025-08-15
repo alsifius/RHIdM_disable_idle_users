@@ -1,0 +1,3 @@
+---
+# vars file for expired_user
+primary_idm_server: idm1-proxmox.bna.plugin.alsifius.com

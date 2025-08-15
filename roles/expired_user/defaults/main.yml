@@ -1,0 +1,3 @@
+---
+# defaults file for expired_user
+basedn: cn=users,cn=accounts,dc=bna,dc=plugin,dc=alsifius,dc=com

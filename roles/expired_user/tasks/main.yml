@@ -1,0 +1,23 @@
+---
+# tasks file for expired_user
+- name: Store the current date in a variable
+  ansible.builtin.shell: date +%Y%m%d%H%M%SZ
+  register: current_time
+
+- name: Perform an LDAP search for users with an expiration past the current date that are still enabled and store them in a variable
+  ansible.builtin.shell: /usr/bin/ldapsearch -x -D cn="directory manager" -w {{ dm_idm1_passwd }} -b {{ basedn }} "(&(!(nsaccountlock=true))(krbprincipalexpiration<=`date +%Y%m%d%H%M%SZ`))" uid -LLL | grep "^uid:" | grep -v admin | awk '{print $2}'
+  register: expired_users
+
+- name: Debug task to see the outp of the previous task
+  debug:
+    var: expired_users
+
+- name: Disable any identified expired users
+  community.general.ipa_user:
+    name: "{{ item }}"
+    state: disabled
+    ipa_pass: '{{ idm_admin_passwd }}'
+    ipa_host: "{{ primary_idm_server }}"
+    validate_certs: false
+  loop: "{{ expired_users.stdout_lines }}"
+  when: expired_users.stdout_lines | length > 0

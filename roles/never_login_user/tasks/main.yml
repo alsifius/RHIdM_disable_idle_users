@@ -1,0 +1,77 @@
+---
+# tasks file for never_login_user
+- name: create a variable with the current date
+  ansible.builtin.set_fact:
+    pipe_timestamp: "{{ lookup('pipe', 'date +%Y%m%dS') }}"
+
+- name: Check that the idle_user_tempFile file exists
+  ansible.builtin.stat:
+    path: "{{ idle_user_tempFile_directory }}/idle_user_tempFile"
+  register: stat_idle_user_tempFile
+
+- name: Check that the results file exists
+  ansible.builtin.stat:
+    path: "{{ idle_user_tempFile_directory }}/results"
+  register: stat_results
+
+- name: Copy the file to a new location
+  ansible.builtin.copy:
+    src: "{{ idle_user_tempFile_directory }}/idle_user_tempFile"
+    dest: "{{ archive_directory }}/idle_user_tempFile"
+    remote_src: true
+  when: stat_idle_user_tempFile.stat.exists
+
+- name: Remove the old file
+  ansible.builtin.file:
+    path: "{{ idle_user_tempFile_directory }}/idle_user_tempFile"
+    state: absent
+  when: stat_idle_user_tempFile.stat.exists
+
+- name: Copy the file to a new location
+  ansible.builtin.copy:
+    src: "{{ idle_user_tempFile_directory }}/results"
+    dest: "{{ archive_directory }}/results"
+    remote_src: true
+  when: stat_results.stat.exists
+
+- name: Remove the old file
+  ansible.builtin.file:
+    path: "{{ idle_user_tempFile_directory }}/results"  
+    state: absent
+  when: stat_results.stat.exists
+    
+- name: search of all IdM (LDAP) servers to build a list of user that have never logged in
+  ansible.builtin.shell: /usr/bin/ldapsearch -x -h {{ item }} -p 389 -D cn="directory manager" -w {{ dm_idm1_passwd }} -b cn=users,cn=accounts,dc=bna,dc=plugin,dc=alsifius,dc=com "(&(!(krblastsuccessfulauth=*))(createtimestamp<=`date -d '{{ idle_days }} days ago' '+%Y%m%d%H%M%S'Z`)(!(nsaccountlock=TRUE)))" uid -LLL | /usr/bin/grep "^uid" | /usr/bin/grep -v admin | /usr/bin/grep -v sudo | /usr/bin/awk -F " " '{print $2}' >> /{{ idle_user_tempFile_directory }}/idle_user_tempFile
+  loop: "{{ groups['idm_servers'] }}"
+
+- name: run bash script to refine list of users that meet cirteria for being disabled in IdM
+  ansible.builtin.shell: "{{ idle_user_tempFile_directory }}/parse.sh"
+  
+- name: load the list of user to be disabled in a variable
+  ansible.builtin.shell: cat {{ idle_user_tempFile_directory }}/results | awk '{print $2}' | sort | uniq
+  register: results
+
+- name: debug results
+  ansible.builtin.debug:
+    var: results
+
+- name: disable users that meet the set criteria
+  community.general.ipa_user:
+    name: "{{ item }}"
+    state: disabled
+    ipa_pass: '{{ idm_admin_passwd }}'
+    ipa_host: "{{ primary_idm_server }}"
+    validate_certs: false
+  loop: "{{ results.stdout_lines }}"
+  register: what_happened
+
+- name: debug a skipped task
+  debug:
+    var: what_happened
+
+- name: Write the users that were disabled to a log file
+  ansible.builtin.shell: |
+    echo "User {{ item }} was disabled; createTimeStamp exceeds {{ idle_days }} days without a successful login being registered" >> /{{ idle_user_tempFile_directory }}/{{ logfile_name}}.{{ pipe_timestamp }}
+  loop: "{{ results.stdout_lines }}"
+  
+    
