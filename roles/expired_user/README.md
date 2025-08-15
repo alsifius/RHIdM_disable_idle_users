@@ -12,8 +12,8 @@ Requirements
 Role Variables
 --------------
 
-**basedn**:  If the domain were acme.example.com, the basedn of the users would be “cn=users,cn=accounts,dc=acme,dc=example,dc=com”
-**primary_idm_server**: Must be the fully qualified domain name of an IdM server in the topology.
+**basedn**:  If the domain were acme.example.com, the basedn of the users would be “cn=users,cn=accounts,dc=acme,dc=example,dc=com”\
+**primary_idm_server**: Must be the fully qualified domain name of an IdM server in the topology\
 **dm_idm1_passwd**: The directory manager password for the underlying LDAP server of IdM - this was set  during installation
 **idm_admin_passwd**: the admin password for the IdM server
 **days**: number of days set for the search of expired user, e.g. 45 days ago; use only the number - the default value is 60
