@@ -1,17 +1,29 @@
 ---
 # tasks file for expired_user
-- name: Store the current date in a variable
-  ansible.builtin.shell: date +%Y%m%d%H%M%SZ
-  register: current_time
-
+# 
+# This first task performs an ldapsearch command on the IdM server designated
+# in the hosts parameter of the playbook calling this role. The search filter 
+# utilizes and attribute that is replicated, so it onluy needs to be run once.
+# It uses the LDAP server's "Directory  Manager" user, but any user with privileges
+# to search the full database for the desired attributes could be substitued. 
+# The search output is run through grep and awk commands to isolate just the 
+# uid attribute value, and they saves that output in the variable, expired_users.
 - name: Perform an LDAP search for users with an expiration past the current date that are still enabled and store them in a variable
-  ansible.builtin.shell: /usr/bin/ldapsearch -x -D cn="directory manager" -w {{ dm_idm1_passwd }} -b {{ basedn }} "(&(!(nsaccountlock=true))(krbprincipalexpiration<=`date +%Y%m%d%H%M%SZ`))" uid -LLL | grep "^uid:" | grep -v admin | awk '{print $2}'
+  ansible.builtin.shell: /usr/bin/ldapsearch -x -Z -D cn="directory manager" -w {{ dm_idm1_passwd }} -b {{ basedn }} "(&(!(nsaccountlock=true))(krbprincipalexpiration<=`date '{{ days }} days ago' '+%Y%m%d%H%M%S'Z`))" uid -LLL | grep "^uid:" | grep -v admin | awk '{print $2}'
   register: expired_users
 
+# The following task prints out the contents of the expired_users variable 
+# populated in the previsou task. This is for debugging purposesa and can
+# be skipped and/or deleted.
 - name: Debug task to see the outp of the previous task
   debug:
     var: expired_users
 
+# The final task uses the candidate list gathered in the first task and diables the user
+# using the ipa_user module. This module requires the admin user credentials for the 
+# IdM servers, and the ipa_host parameter must be a fully qualified domain name,
+# and the target system in designated in the hosts parameter must be able to resolve
+# hostname used in this module. 
 - name: Disable any identified expired users
   community.general.ipa_user:
     name: "{{ item }}"
