@@ -1,21 +1,40 @@
 #!/usr/bin/env bash
-
+# This file is ment to run in conjunction with the idle_user_1
+# Ansible role. Some of the parameters in this script must have
+# identiical values to the coresponding variables in the role's
+# playbook.
 # ====== CONFIGURATION ======
 USERNAME_FILE="/mnt/idm_plugin/user_list.txt"
 
 # Space-separated list of LDAP servers
+# This must list all IdM servers in the tolopology.
 LDAP_SERVERS=("ldap://192.168.2.199" "ldap://192.168.2.104" "ldap://192.168.2.50")
 
 # Bind DN and password
+# Any user specified must use its full DN and must have read
+# access for the entire user branch of he DIT, and must have
+# read access for the krblastsuccessfulauth attribute. The
+# script does require the use of the bind password for the
+# user specified. It is recommend to place the password in
+# a secure directory readable by only the root user.
+#
 BIND_DN="cn=Directory Manager"
 BIND_PW="password"
-
+#
+# Change the BASE_DN variable to match your environment.
 BASE_DN="cn=users,cn=accounts,dc=bna,dc=plugin,dc=alsifius,dc=com"
 ATTR="krblastSuccessfulAuth"
 DAYS_THRESHOLD=60
-
+#
+# Set the DAYS_THRESHOLD to the expiration limit for idle users.
 # ====== FUNCTIONS ======
-
+#
+# The following functions allow for the search of users using the
+# ldapsearch utility to iterate through all of the lsited IdM servers
+# and compares them the krblastsuccessfulauth attribute timestamp
+# to eliminate the users from the candidate list. A list of users
+# that should be deleted is then printed to stdout.
+#
 # Convert LDAP generalized time (YYYYmmddHHMMSSZ) to epoch
 ldap_time_to_epoch() {
     local ts="$1"
