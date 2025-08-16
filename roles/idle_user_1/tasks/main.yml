@@ -1,21 +1,20 @@
 # SPDX-License-Identifier: MIT-0
 ---
 # tasks file for idle_user_1
-- name: Store the current time as a variable
-  ansible.builtin.command:
-    cmd: date -d today '+%Y%m%d%H%M%S'Z
-  register: current_time
-  changed_when: false
-  
-- name: create a variable with the current date
-  ansible.builtin.set_fact:
-    pipe_timestamp: "{{ lookup('pipe', 'date +%Y%m%dS') }}"
-
+# 
+# The user_list.txt file is a file that will be used to create a candidate list
+# of user that will be disabled. A new file is created ever time we run the 
+# playbook. The following task checks for the exisitence of a file and stores
+# the result in the variable "stat_user_list". The task is usingt the 
+# "idle_user_tempFile_directory" variable to determine the pah of the file. 
 - name: Check that the results file exists
   ansible.builtin.stat:
     path: "{{ idle_user_tempFile_directory }}/user_list.txt"
   register: stat_user_list
-  
+
+# If a user_list.txt file exists, this task will copy the current file to 
+# the directory specified in the "archive_directory" variable and time-stamps
+# it with the current date and time.
 - name: Copy the file to a new location
   ansible.builtin.copy:
     src: "{{ idle_user_tempFile_directory }}/user_list.txt"
@@ -23,13 +22,25 @@
     remote_src: true
   when:  stat_user_list.stat.exists
 
-- name: Remove the old file
+# If there was a user_list.txt file in place when the palybook was run,
+# the following task removes the file.
+- name: Remove the old user_list.txt file
   ansible.builtin.file:
     path: "{{ idle_user_tempFile_directory }}/user_list.txt"
     state: absent
   when:  stat_user_list.stat.exists
-  
-- name: search of all IdM (LDAP) servers to build a list of user that have never logged in
+
+# The following task uses an ldapsearch command, filtering on the krblastsuccessfulauth
+# attribute, the idle time limit and the nsaccountlock atribute to identify users that have 
+# not been disabled. The results are redirected to grep and awk commands and stored in 
+# the user_list.txt file. It iterates through all IdM servers to locate any user that 
+# meets the set criteria. Each IdM server in the topology is searched becasue the 
+# krblastsuccessfulauth attribute is no replicaed among he servers. The groups['idm_servers]'
+# variable in the loop directive in this task is a built in attribute in Anisble. The 
+# idm_servers portion of the variable is the name of the inventory. It is expected  that 
+# the designated inventory will have an updated listing of all IdM servers in the 
+# environment. 
+- name: search all IdM (LDAP) servers to build a list of user that have never logged in
   ansible.builtin.shell: >
     /usr/bin/ldapsearch -x -h {{ item }} -p 389 -D cn="directory manager" -w {{ dm_idm1_passwd }} \
     -b {{ basedn }} "(&(!(nsaccountlock=true))(krblastsuccessfulauth<=`date -d '{{ idle_days }} days ago' '+%Y%m%d%H%M%S'Z`))" \
@@ -37,15 +48,33 @@
     /usr/bin/awk '{print $2}' >> /{{ idle_user_tempFile_directory }}/user_list.txt
   loop: "{{ groups['idm_servers'] }}"
 
+# The following task runs a bash script against the candidate list created in the previous task. 
+# It uses a different search criteria to ensure that the candidate list is not identfying false
+# positives. Given that any of the idM servers could be utilized in an authentication request from
+# client systems, there could be attibutes with different timestamps on diferent servers: one 
+# before the expiration timeframe, and one after. The initial candidate list is checked for user 
+# that have timestamps that extend beyond the expiration timeframe. The script checks the names from that 
+# list to see if any timestamps have a date that is earlier than the expiration timeframe, and checks 
+# to remove any names from the list that meet this new criteria. The results are redirected to grep  
+# to isolate just the usernames, which are saved in the 'idle_users' variable. Please read the comments
+# in the script to ensure al the requirements of the script are met and it is executable. 
 - name: run bash script to refine list of users that meet cirteria for being disabled in IdM
   ansible.builtin.shell: >
     {{ idle_user_tempFile_directory }}/last_login.sh | grep -v "^==="
   register: idle_users
 
+# The following task prints out the usernames from the previous task for debuging purposes.
+# It can be deleted. 
 - name: debug task - print the variable of the user names
   ansible.builtin.debug:
     var: idle_users
-    
+
+# The final task uses the refined candidate list and diables the users
+# using the ipa_user module. This module requires the admin user credentials for the 
+# IdM servers, and the ipa_host parameter must be a fully qualified domain name,
+# and the target system designated in the ipa_host parameter must be able to resolve
+# the hostname used in this module. This task only runs if there are users identified
+# and populated in the idle_users variable. 
 - name: Disable the idle users
   community.general.ipa_user:
     name: "{{ item }}"
