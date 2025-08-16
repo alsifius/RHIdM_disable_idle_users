@@ -16,10 +16,10 @@ LDAP_SERVERS=("ldap://192.168.2.199" "ldap://192.168.2.104" "ldap://192.168.2.50
 # read access for the krblastsuccessfulauth attribute. The
 # script does require the use of the bind password for the
 # user specified. It is recommend to place the password in
-# a secure directory readable by only the root user.
+# a file, in a secure directory, readable only by the root user.
 #
 BIND_DN="cn=Directory Manager"
-BIND_PW="password"
+BIND_PW="`cat /root/vault`"
 #
 # Change the BASE_DN variable to match your environment.
 BASE_DN="cn=users,cn=accounts,dc=bna,dc=plugin,dc=alsifius,dc=com"
