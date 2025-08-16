@@ -53,6 +53,8 @@ Example Playbook
           3339396136306436630a363539636538646431616336636461663339373666363166343636333131
           6164
 ```
+> [!NOTE]
+> In the above example, the IP address refernces the target IdM server - in the lab environment, I used the primary, but could be any server in the IdM serer topology. If the host name is used, the AAP server must be able to resolve the name. 
 
 License
 -------
