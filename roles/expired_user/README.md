@@ -1,6 +1,8 @@
 Role Name
 =========
 This role performs an LDAP search on the underlying directory server for the Red Hat Identity Manager (IdM) to identify user that have an expiration date set in their user entry (krbPrincipal expiration attribute value) that is older than the designated time interval (the default value is 60 days). Once a candidate list of users is identified, the playbook user the ipa_user module to disable the user. 
+> [!NOTE]
+> The main.yml file in the tasks folder of this role is heavily commented with useful information about successully running this playbook and role.
 
 Requirements
 ------------
@@ -54,7 +56,7 @@ Example Playbook
           6164
 ```
 > [!NOTE]
-> In the above example, the IP address refernces the target IdM server - in the lab environment, I used the primary, but could be any server in the IdM serer topology. If the host name is used, the AAP server must be able to resolve the name. 
+> In the above example, the IP address refernces the target IdM server - in the lab environment, I used the primary, but could be any server in the IdM serer topology. If the host name is used, the AAP server must be able to resolve the name. The target system in the host parameter must be in he refernced inventory when running the job that uses this role. 
 
 License
 -------
