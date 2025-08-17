@@ -2,8 +2,10 @@
 # tasks file for never_login_user
 - name: create a variable with the current date
   ansible.builtin.set_fact:
-    pipe_timestamp: "{{ lookup('pipe', 'date +%Y%m%dS') }}"
-
+    pipe_timestamp: "{{ lookup('pipe', 'date +%Y%m%d') }}"
+# 
+# The following two tasks will check for the existence of files that
+# will be used to store candidae lists for disabliing users.
 - name: Check that the idle_user_tempFile file exists
   ansible.builtin.stat:
     path: "{{ idle_user_tempFile_directory }}/idle_user_tempFile"
@@ -13,7 +15,10 @@
   ansible.builtin.stat:
     path: "{{ idle_user_tempFile_directory }}/results"
   register: stat_results
-
+#
+# The next four tasks will copy exisiting files to a new location 
+# for temporary archival, and remove files from the working 
+# directory.
 - name: Copy the file to a new location
   ansible.builtin.copy:
     src: "{{ idle_user_tempFile_directory }}/idle_user_tempFile"
@@ -39,22 +44,43 @@
     path: "{{ idle_user_tempFile_directory }}/results"  
     state: absent
   when: stat_results.stat.exists
-    
+ #
+ # The following task runs an ldapsearch command. The command is 
+ # only run on the target system, however the '-h' option iterates
+ # through each of the servers in the 'idm_servers' group in the
+ # inventory. It is necessary to search all the servers; one of the
+ # attributes in the filter for he search is an attribute that is not
+ # replicated among the servers. The results of the search are refined 
+ # by the awk and grep commands to isolate just the usernames and 
+ # stored in a file.
 - name: search of all IdM (LDAP) servers to build a list of user that have never logged in
   ansible.builtin.shell: /usr/bin/ldapsearch -x -h {{ item }} -p 389 -D cn="directory manager" -w {{ dm_idm1_passwd }} -b cn=users,cn=accounts,dc=bna,dc=plugin,dc=alsifius,dc=com "(&(!(krblastsuccessfulauth=*))(createtimestamp<=`date -d '{{ idle_days }} days ago' '+%Y%m%d%H%M%S'Z`)(!(nsaccountlock=TRUE)))" uid -LLL | /usr/bin/grep "^uid" | /usr/bin/grep -v admin | /usr/bin/grep -v sudo | /usr/bin/awk -F " " '{print $2}' >> /{{ idle_user_tempFile_directory }}/idle_user_tempFile
   loop: "{{ groups['idm_servers'] }}"
-
+#
+# The contents of the file holding the candidate list are run through
+# parse.sh, and bash script that checks for false indetified users.
+# The refined candidate list is stored in a file called 'results'.
 - name: run bash script to refine list of users that meet cirteria for being disabled in IdM
   ansible.builtin.shell: "{{ idle_user_tempFile_directory }}/parse.sh"
-  
+
+# The following task loads just the user names into a variable, 
+# 'results'.
 - name: load the list of user to be disabled in a variable
   ansible.builtin.shell: cat {{ idle_user_tempFile_directory }}/results | awk '{print $2}' | sort | uniq
   register: results
-
+#
+# The following ask prints the contents of the 'results' variable.
+# This task canbe safely deleted.
 - name: debug results
   ansible.builtin.debug:
     var: results
 
+# The following task uses the ipa_user module to disable
+# users that have met the criteria. It utilizes the
+# admin credentials of IdM. The default user for the
+# module is 'admin'. If another user is used, it needs
+# to be specified in the ipa_user parameter. The results
+# of the task are stored in a variable.
 - name: disable users that meet the set criteria
   community.general.ipa_user:
     name: "{{ item }}"
@@ -65,10 +91,17 @@
   loop: "{{ results.stdout_lines }}"
   register: what_happened
 
+#
+# The results of the previous task are printed as to 
+# debug he playbook. The followign task can be safely
+# removed.
 - name: debug a skipped task
   debug:
     var: what_happened
 
+#
+# Any user that were disabled in the previous task are written 
+# to a the 'logname' file, which is appended with he current date.
 - name: Write the users that were disabled to a log file
   ansible.builtin.shell: |
     echo "User {{ item }} was disabled; createTimeStamp exceeds {{ idle_days }} days without a successful login being registered" >> /{{ idle_user_tempFile_directory }}/{{ logfile_name}}.{{ pipe_timestamp }}
