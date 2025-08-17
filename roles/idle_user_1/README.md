@@ -13,8 +13,13 @@ Role Variables
 | basedn | The basedn of the IdM server where the users are stored - by default, this is the set using the domain components of the network where IdM is installed. If the domain were acme.example.com, the basedn of the users would be “cn=users,cn=accounts,dc=acme,dc=example,dc=com” |
 | primary_idm_server | Must be the fully qualified domain name of an IdM server in the topology |
 | idle_days | number of days set for the search of expired user, e.g. 45 days ago; use only the number - the default value is 60 |
+| idle_user_tempFile_directory | the dierectory for storing files used for uer candidate lists, scripts, and oher temporary files |
+| logfile_name | user candidate lists are stored in this file and the file is overwritten with each time the playbook is run |
+| archive_directory | the candidate list file is copied to another directory where specificied by this attribute |
 | dm_idm1_passwd | The directory manager password for the underlying LDAP server of IdM - this was set during installation |
 | idm_admin_passwd | The admin password for the IdM server |
+> [!IMPORTANT]
+> Any variable containing sensitive information, such as passwords, should be encrypted using the Ansible Vault and logging should not report sensitve values!
 
 Dependencies
 ------------
@@ -50,6 +55,9 @@ Example Playbook
           3339396136306436630a363539636538646431616336636461663339373666363166343636333131
           6164
 ```
+> [!NOTE]
+> In the above example, the IP address refernces the target IdM server - in the lab environment, I used the primary, but could be any server in the IdM serer topology. If the host name is used, the AAP server must be able to resolve the name. The target system in the host parameter must be in he refernced inventory when running the job that uses this role.
+
 
 License
 -------
