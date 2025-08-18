@@ -22,7 +22,7 @@ Role Variables
 | **dm_idm1_passwd** | The directory manager password for the underlying LDAP server of IdM - this was set  during installation |
 | **idm_admin_passwd** | The admin password for the IdM server |
 > [!IMPORTANT]
-> Any variable containing sensitive information, such as passwords, should be encrypted using the Ansible Vault and logging should not report sensitve values!
+> Any variable containing sensitive information, such as passwords, should be encrypted using the Ansible Vault and logging should not report sensitve values! For detailed instruction on creating vaulted variables from the ansible comman line, follow the link for [Creating Encrypted Variables](https://docs.ansible.com/ansible/latest/vault_guide/vault_encrypting_content.html#creating-encrypted-variables).
 
 Dependencies
 ------------
