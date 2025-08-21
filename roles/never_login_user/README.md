@@ -26,7 +26,7 @@ Role Variables
 Dependencies
 ------------
 
-There are no other roles upon which this role depends, however, it is dependent on a script, last_login.sh, that is included in the files dierctory of this role.
+There are no other roles upon which this role depends, however, it is dependent on a script, parse.sh, that is included in the files dierctory of this role.
 >[!IMPORTANT]
 >It is imperative that the comments of the script are read and all requirements of the script are completed.
 
